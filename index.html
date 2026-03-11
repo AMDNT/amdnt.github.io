@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>每日看板</title>
+    <style>
+        /* 极简风格：无边框、无背景色，使用系统默认无衬线字体 */
+        body {
+            margin: 0;
+            padding: 12px;
+            background: #ffffff;
+            color: #000000;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            font-size: 16px;
+            line-height: 1.4;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .card {
+            padding: 0;
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: bold;
+            border-left: 4px solid #000;
+            padding-left: 8px;
+            margin: 0;
+        }
+        .header {
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 8px;
+            margin-bottom: 4px;
+        }
+        .row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .countdown-number {
+            font-size: 42px;
+            text-align: center;
+            font-weight: bold;
+            margin: 5px 0 0;
+        }
+        .countdown-label {
+            text-align: center;
+            font-size: 15px;
+            color: #333;
+            margin-top: 2px;
+        }
+        /* 天气横排 */
+        .forecast-row {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            gap: 15px;
+        }
+        .forecast-item {
+            flex: 1;
+            text-align: center;
+            padding: 5px 0;
+        }
+        .forecast-icon {
+            font-size: 32px;
+            line-height: 1.2;
+        }
+        .forecast-date {
+            font-weight: bold;
+            font-size: 16px;
+            margin: 4px 0 2px;
+        }
+        .forecast-temp {
+            font-size: 16px;
+            margin: 2px 0;
+        }
+        .forecast-desc {
+            font-size: 14px;
+            color: #555;
+            text-transform: capitalize;
+        }
+        /* 地名卡片 */
+        #place-card {
+            display: flex;
+            flex-direction: column;
+            min-height: 140px;
+        }
+        .place-name {
+            font-size: 32px;
+            font-weight: bold;
+            text-align: center;
+            margin: auto 0;
+            word-break: break-word;
+        }
+        .place-desc {
+            font-size: 15px;
+            color: #333;
+            text-align: justify;
+            line-height: 1.4;
+            margin-top: auto;
+            word-break: break-word;
+        }
+        /* 待办区域新样式 */
+        .todo-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .todo-header-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .todo-header-btn {
+            font-size: 20px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+            background: none;
+        }
+        .todo-header-btn.clear {
+            font-size: 16px;
+            width: auto;
+            padding: 0 10px;
+        }
+        .todo-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0 0;
+        }
+        .todo-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-size: 17px;
+            border-bottom: 1px dashed #eee;
+            padding-bottom: 6px;
+        }
+        .todo-item input[type="checkbox"] {
+            width: 22px;
+            height: 22px;
+            margin-right: 6px;
+            flex-shrink: 0;
+        }
+        .todo-item-text {
+            flex: 1;
+            word-break: break-word;
+        }
+        .todo-item-input {
+            flex: 1;
+            font-size: 17px;
+            padding: 4px 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+        .todo-item-delete {
+            font-size: 20px;
+            color: #999;
+            cursor: pointer;
+            padding: 0 6px;
+            user-select: none;
+            flex-shrink: 0;
+        }
+        .todo-item-delete:hover {
+            color: #f00;
+        }
+        .footer {
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+            margin-top: 15px;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+    </style>
+    <!-- 引入外部配置文件 -->
+    <script src="config.js"></script>
+    <script src="places.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header" id="datetime">加载日期...</div>
+
+        <!-- 两个倒计时并排 -->
+        <div class="row-2">
+            <div class="card">
+                <div class="card-title" id="countdown1-title">⏳ 倒计时1</div>
+                <div class="countdown-number" id="countdown1">--</div>
+                <div class="countdown-label">天</div>
+            </div>
+            <div class="card">
+                <div class="card-title" id="countdown2-title">⏳ 倒计时2</div>
+                <div class="countdown-number" id="countdown2">--</div>
+                <div class="countdown-label">天</div>
+            </div>
+        </div>
+
+        <!-- 未来天气横排 -->
+        <div class="card">
+            <div class="card-title">🌤️ 未来天气</div>
+            <div id="forecast" class="forecast-row">加载天气...</div>
+        </div>
+
+        <!-- 地名 + 待办 并排 -->
+        <div class="row-2">
+            <!-- 左侧：南京地名卡片 -->
+            <div class="card">
+                <div class="card-title">🏯 南京地名</div>
+                <div id="place-card">
+                    <div id="place-name" class="place-name">“冶城”</div>
+                    <div id="place-desc" class="place-desc">公元前495年，吴王夫差在今朝天宫后山设冶铸作坊，南京最早的城邑雏形。</div>
+                </div>
+            </div>
+            <!-- 右侧：动态待办卡片 -->
+            <div class="card">
+                <div class="todo-header">
+                    <div class="card-title">✅ 待办事项</div>
+                    <div class="todo-header-buttons">
+                        <div id="todoAddBtn" class="todo-header-btn">+</div>
+                        <div id="todoClearBtn" class="todo-header-btn clear">清空</div>
+                    </div>
+                </div>
+                <ul class="todo-list" id="todoList"></ul>
+            </div>
+        </div>
+
+        <div class="footer"></div>
+    </div>
+
+    <script>
+        // ---------- 全局错误捕获（防止因配置缺失导致时间不更新）----------
+        window.addEventListener('error', function(e) {
+            console.log('捕获到错误:', e.message);
+        });
+
+        // ---------- 地名相关 ----------
+        const placeNameEl = document.getElementById('place-name');
+        const placeDescEl = document.getElementById('place-desc');
+
+        function updateNanjingPlace() {
+            // 确保 NANJING_PLACES 存在
+            if (typeof NANJING_PLACES !== 'undefined' && NANJING_PLACES.length) {
+                const randomIndex = Math.floor(Math.random() * NANJING_PLACES.length);
+                const place = NANJING_PLACES[randomIndex];
+                placeNameEl.textContent = `“${place.name}”`;
+                placeDescEl.textContent = place.desc;
+            } else {
+                placeNameEl.textContent = '地名加载中...';
+                placeDescEl.textContent = '';
+            }
+        }
+
+        // ---------- 日期时间 ----------
+        const datetimeEl = document.getElementById('datetime');
+        function updateDateTime() {
+            try {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = now.getMonth() + 1;
+                const day = now.getDate();
+                const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                const weekday = weekdays[now.getDay()];
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                datetimeEl.textContent = `${year}年${month}月${day}日 ${weekday} ${hours}:${minutes}`;
+            } catch (e) {
+                console.error('更新时间出错', e);
+            }
+        }
+
+        // ---------- 倒计时（如果配置存在则更新，否则显示默认）----------
+        const countdown1El = document.getElementById('countdown1');
+        const countdown2El = document.getElementById('countdown2');
+        const countdown1Title = document.getElementById('countdown1-title');
+        const countdown2Title = document.getElementById('countdown2-title');
+
+        function setCountdownTitles() {
+            if (typeof COUNTDOWNS !== 'undefined' && COUNTDOWNS && COUNTDOWNS.length >= 2) {
+                countdown1Title.textContent = `⏳ ${COUNTDOWNS[0].name}`;
+                countdown2Title.textContent = `⏳ ${COUNTDOWNS[1].name}`;
+            } else {
+                countdown1Title.textContent = '⏳ 倒计时1';
+                countdown2Title.textContent = '⏳ 倒计时2';
+            }
+        }
+
+        function daysUntil(targetYear, targetMonth, targetDay) {
+            if (!targetYear || !targetMonth || !targetDay) return 0;
+            const target = new Date(targetYear, targetMonth - 1, targetDay);
+            target.setHours(0, 0, 0, 0);
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            const diff = target - now;
+            return diff >= 0 ? Math.floor(diff / (1000 * 60 * 60 * 24)) : 0;
+        }
+
+        function updateCountdowns() {
+            if (typeof COUNTDOWNS !== 'undefined' && COUNTDOWNS && COUNTDOWNS.length >= 2) {
+                countdown1El.textContent = daysUntil(COUNTDOWNS[0].year, COUNTDOWNS[0].month, COUNTDOWNS[0].day);
+                countdown2El.textContent = daysUntil(COUNTDOWNS[1].year, COUNTDOWNS[1].month, COUNTDOWNS[1].day);
+            } else {
+                countdown1El.textContent = '--';
+                countdown2El.textContent = '--';
+            }
+        }
+
+        // ---------- 天气（如果配置存在则请求，否则显示模拟）----------
+        const forecastEl = document.getElementById('forecast');
+
+        function getWeatherIcon(code) {
+            if (code >= 100 && code < 200) return '☀️';
+            if (code >= 200 && code < 300) return '☁️';
+            if (code >= 300 && code < 400) return '🌧️';
+            if (code >= 400 && code < 500) return '❄️';
+            if (code >= 500 && code < 600) return '🌫️';
+            if (code >= 600 && code < 700) return '⛈️';
+            return '🌈';
+        }
+
+        async function fetchForecast() {
+            // 如果 WEATHER_CONFIG 未定义，显示模拟数据
+            if (typeof WEATHER_CONFIG === 'undefined' || !WEATHER_CONFIG.apiKey) {
+                const mock = [
+                    { date: '4月12日', temp: '18°C / 10°C', desc: '晴', icon: '☀️' },
+                    { date: '4月13日', temp: '20°C / 12°C', desc: '多云', icon: '☁️' },
+                    { date: '4月14日', temp: '17°C / 11°C', desc: '小雨', icon: '🌧️' }
+                ];
+                renderForecast(mock);
+                return;
+            }
+            try {
+                const config = WEATHER_CONFIG;
+                const cityUrl = `https://geoapi.qweather.com/v2/city/lookup?location=${encodeURIComponent(config.city)}&key=${config.apiKey}`;
+                const cityRes = await fetch(cityUrl);
+                const cityData = await cityRes.json();
+                if (cityData.code !== '200' || !cityData.location || cityData.location.length === 0) {
+                    throw new Error('城市查询失败');
+                }
+                const cityId = cityData.location[0].id;
+                const weatherUrl = `https://devapi.qweather.com/v7/weather/3d?location=${cityId}&key=${config.apiKey}&unit=${config.unit === 'c' ? 'm' : 'i'}`;
+                const weatherRes = await fetch(weatherUrl);
+                const weatherData = await weatherRes.json();
+                if (weatherData.code !== '200') throw new Error('天气查询失败');
+                const forecastList = weatherData.daily.slice(0, 3).map(day => {
+                    const date = new Date(day.fxDate);
+                    const month = date.getMonth() + 1;
+                    const dayOfMonth = date.getDate();
+                    const tempMin = Math.round(day.tempMin);
+                    const tempMax = Math.round(day.tempMax);
+                    const icon = getWeatherIcon(day.iconDay);
+                    return {
+                        date: `${month}月${dayOfMonth}日`,
+                        temp: `${tempMin}°C / ${tempMax}°C`,
+                        desc: day.textDay,
+                        icon: icon
+                    };
+                });
+                renderForecast(forecastList);
+            } catch (e) {
+                console.error('天气获取失败', e);
+                forecastEl.innerHTML = '<div class="forecast-item">天气加载失败</div>';
+            }
+        }
+
+        function renderForecast(forecastList) {
+            let html = '';
+            forecastList.forEach(day => {
+                html += `
+                    <div class="forecast-item">
+                        <div class="forecast-icon">${day.icon || '🌈'}</div>
+                        <div class="forecast-date">${day.date}</div>
+                        <div class="forecast-temp">${day.temp}</div>
+                        <div class="forecast-desc">${day.desc}</div>
+                    </div>
+                `;
+            });
+            forecastEl.innerHTML = html || '<div class="forecast-item">无预报数据</div>';
+        }
+
+        // ---------- 动态待办事项管理 ----------
+        const todoListEl = document.getElementById('todoList');
+        const todoAddBtn = document.getElementById('todoAddBtn');
+        const todoClearBtn = document.getElementById('todoClearBtn');
+
+        let todos = [];
+
+        function loadTodos() {
+            const stored = localStorage.getItem('dynamicTodos');
+            if (stored) {
+                try {
+                    todos = JSON.parse(stored);
+                } catch (e) {
+                    todos = [];
+                }
+            } else {
+                todos = [];
+            }
+        }
+
+        function saveTodos() {
+            localStorage.setItem('dynamicTodos', JSON.stringify(todos));
+        }
+
+        function hasBlankTodo() {
+            return todos.some(todo => todo.text.trim() === '');
+        }
+
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe.replace(/[&<>"']/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                if (m === '"') return '&quot;';
+                return '&#039;';
+            });
+        }
+
+        function renderTodos() {
+            if (!todoListEl) return;
+            let html = '';
+            todos.forEach(todo => {
+                if (todo.editing) {
+                    html += `
+                        <li class="todo-item" data-id="${todo.id}">
+                            <input type="checkbox" disabled>
+                            <input type="text" class="todo-item-input" id="edit-${todo.id}" value="${escapeHtml(todo.text)}" placeholder="输入事项...">
+                            <span class="todo-item-delete" onclick="deleteTodo(${todo.id})">✕</span>
+                        </li>
+                    `;
+                } else {
+                    html += `
+                        <li class="todo-item" data-id="${todo.id}">
+                            <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="toggleTodo(${todo.id}, this.checked)">
+                            <span class="todo-item-text">${escapeHtml(todo.text)}</span>
+                            <span class="todo-item-delete" onclick="deleteTodo(${todo.id})">✕</span>
+                        </li>
+                    `;
+                }
+            });
+            todoListEl.innerHTML = html;
+
+            const editingTodo = todos.find(t => t.editing);
+            if (editingTodo) {
+                const input = document.getElementById(`edit-${editingTodo.id}`);
+                if (input) {
+                    input.focus();
+                    input.onkeydown = (e) => {
+                        if (e.key === 'Enter') {
+                            saveEditing(editingTodo.id, input.value);
+                        }
+                    };
+                    input.onblur = () => {
+                        saveEditing(editingTodo.id, input.value);
+                    };
+                }
+            }
+        }
+
+        function saveEditing(id, newText) {
+            const todo = todos.find(t => t.id === id);
+            if (!todo) return;
+            const trimmed = newText.trim();
+            if (trimmed === '') {
+                todos = todos.filter(t => t.id !== id);
+            } else {
+                todo.text = trimmed;
+                todo.editing = false;
+            }
+            saveTodos();
+            renderTodos();
+        }
+
+        function addTodo() {
+            if (hasBlankTodo()) {
+                const blankTodo = todos.find(t => t.text.trim() === '');
+                if (blankTodo) {
+                    if (!blankTodo.editing) {
+                        blankTodo.editing = true;
+                        saveTodos();
+                        renderTodos();
+                    } else {
+                        renderTodos();
+                    }
+                }
+                return;
+            }
+            const newTodo = {
+                id: Date.now(),
+                text: '',
+                completed: false,
+                editing: true
+            };
+            todos.push(newTodo);
+            saveTodos();
+            renderTodos();
+        }
+
+        window.deleteTodo = function(id) {
+            todos = todos.filter(todo => todo.id !== id);
+            saveTodos();
+            renderTodos();
+        };
+
+        window.toggleTodo = function(id, checked) {
+            const todo = todos.find(t => t.id === id);
+            if (todo) {
+                todo.completed = checked;
+                saveTodos();
+                renderTodos();
+            }
+        };
+
+        function clearTodos() {
+            if (confirm('确定清空所有待办事项吗？')) {
+                todos = [];
+                saveTodos();
+                renderTodos();
+            }
+        }
+
+        todoAddBtn.addEventListener('click', addTodo);
+        todoClearBtn.addEventListener('click', clearTodos);
+
+        loadTodos();
+        renderTodos();
+
+        // ---------- 初始化页面其他部分（保证时间更新始终注册）----------
+        function init() {
+            // 先更新时间
+            updateDateTime();
+
+            // 设置定时器，每分钟更新一次时间
+            setInterval(updateDateTime, 60000);
+
+            // 尝试更新倒计时和标题（如果配置存在）
+            try {
+                setCountdownTitles();
+                updateCountdowns();
+                setInterval(updateCountdowns, 60000); // 倒计时每天变一次，但为了精确可每分钟更新
+            } catch (e) {
+                console.log('倒计时配置可能未加载', e);
+            }
+
+            // 天气
+            try {
+                fetchForecast();
+                // 天气每天更新即可，但这里不设自动刷新，保持原逻辑
+            } catch (e) {
+                console.log('天气配置可能未加载', e);
+            }
+
+            // 地名
+            try {
+                updateNanjingPlace();
+            } catch (e) {
+                console.log('地名加载出错', e);
+            }
+        }
+
+        init();
+    </script>
+    <!-- 隐藏平台注入测试提示的脚本（仅适用于 EdgeOne，其他平台可忽略） -->
+    <script>
+        window.addEventListener('load', function() {
+            document.body.childNodes.forEach(node => {
+                if (node.nodeType === Node.ELEMENT_NODE && node.innerText && node.innerText.includes('仅用于演示')) {
+                    node.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
