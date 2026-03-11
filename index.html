@@ -246,45 +246,64 @@
     </div>
 
     <script>
+        // ---------- 全局错误捕获（防止因配置缺失导致时间不更新）----------
+        window.addEventListener('error', function(e) {
+            console.log('捕获到错误:', e.message);
+        });
+
         // ---------- 地名相关 ----------
         const placeNameEl = document.getElementById('place-name');
         const placeDescEl = document.getElementById('place-desc');
 
         function updateNanjingPlace() {
-            const randomIndex = Math.floor(Math.random() * NANJING_PLACES.length);
-            const place = NANJING_PLACES[randomIndex];
-            placeNameEl.textContent = `“${place.name}”`;
-            placeDescEl.textContent = place.desc;
+            // 确保 NANJING_PLACES 存在
+            if (typeof NANJING_PLACES !== 'undefined' && NANJING_PLACES.length) {
+                const randomIndex = Math.floor(Math.random() * NANJING_PLACES.length);
+                const place = NANJING_PLACES[randomIndex];
+                placeNameEl.textContent = `“${place.name}”`;
+                placeDescEl.textContent = place.desc;
+            } else {
+                placeNameEl.textContent = '地名加载中...';
+                placeDescEl.textContent = '';
+            }
         }
 
         // ---------- 日期时间 ----------
         const datetimeEl = document.getElementById('datetime');
         function updateDateTime() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = now.getMonth() + 1;
-            const day = now.getDate();
-            const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-            const weekday = weekdays[now.getDay()];
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            datetimeEl.textContent = `${year}年${month}月${day}日 ${weekday} ${hours}:${minutes}`;
+            try {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = now.getMonth() + 1;
+                const day = now.getDate();
+                const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                const weekday = weekdays[now.getDay()];
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                datetimeEl.textContent = `${year}年${month}月${day}日 ${weekday} ${hours}:${minutes}`;
+            } catch (e) {
+                console.error('更新时间出错', e);
+            }
         }
 
-        // ---------- 倒计时 ----------
+        // ---------- 倒计时（如果配置存在则更新，否则显示默认）----------
         const countdown1El = document.getElementById('countdown1');
         const countdown2El = document.getElementById('countdown2');
         const countdown1Title = document.getElementById('countdown1-title');
         const countdown2Title = document.getElementById('countdown2-title');
 
         function setCountdownTitles() {
-            if (COUNTDOWNS && COUNTDOWNS.length >= 2) {
+            if (typeof COUNTDOWNS !== 'undefined' && COUNTDOWNS && COUNTDOWNS.length >= 2) {
                 countdown1Title.textContent = `⏳ ${COUNTDOWNS[0].name}`;
                 countdown2Title.textContent = `⏳ ${COUNTDOWNS[1].name}`;
+            } else {
+                countdown1Title.textContent = '⏳ 倒计时1';
+                countdown2Title.textContent = '⏳ 倒计时2';
             }
         }
 
         function daysUntil(targetYear, targetMonth, targetDay) {
+            if (!targetYear || !targetMonth || !targetDay) return 0;
             const target = new Date(targetYear, targetMonth - 1, targetDay);
             target.setHours(0, 0, 0, 0);
             const now = new Date();
@@ -294,13 +313,16 @@
         }
 
         function updateCountdowns() {
-            if (COUNTDOWNS && COUNTDOWNS.length >= 2) {
+            if (typeof COUNTDOWNS !== 'undefined' && COUNTDOWNS && COUNTDOWNS.length >= 2) {
                 countdown1El.textContent = daysUntil(COUNTDOWNS[0].year, COUNTDOWNS[0].month, COUNTDOWNS[0].day);
                 countdown2El.textContent = daysUntil(COUNTDOWNS[1].year, COUNTDOWNS[1].month, COUNTDOWNS[1].day);
+            } else {
+                countdown1El.textContent = '--';
+                countdown2El.textContent = '--';
             }
         }
 
-        // ---------- 天气 ----------
+        // ---------- 天气（如果配置存在则请求，否则显示模拟）----------
         const forecastEl = document.getElementById('forecast');
 
         function getWeatherIcon(code) {
@@ -314,8 +336,8 @@
         }
 
         async function fetchForecast() {
-            const config = WEATHER_CONFIG;
-            if (!config.apiKey || config.apiKey === '') {
+            // 如果 WEATHER_CONFIG 未定义，显示模拟数据
+            if (typeof WEATHER_CONFIG === 'undefined' || !WEATHER_CONFIG.apiKey) {
                 const mock = [
                     { date: '4月12日', temp: '18°C / 10°C', desc: '晴', icon: '☀️' },
                     { date: '4月13日', temp: '20°C / 12°C', desc: '多云', icon: '☁️' },
@@ -325,6 +347,7 @@
                 return;
             }
             try {
+                const config = WEATHER_CONFIG;
                 const cityUrl = `https://geoapi.qweather.com/v2/city/lookup?location=${encodeURIComponent(config.city)}&key=${config.apiKey}`;
                 const cityRes = await fetch(cityUrl);
                 const cityData = await cityRes.json();
@@ -377,7 +400,6 @@
         const todoAddBtn = document.getElementById('todoAddBtn');
         const todoClearBtn = document.getElementById('todoClearBtn');
 
-        // 从 localStorage 加载待办列表
         let todos = [];
 
         function loadTodos() {
@@ -397,27 +419,34 @@
             localStorage.setItem('dynamicTodos', JSON.stringify(todos));
         }
 
-        // 检查是否存在空白项（内容为空且未被编辑完成）
         function hasBlankTodo() {
             return todos.some(todo => todo.text.trim() === '');
         }
 
-        // 渲染待办列表
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe.replace(/[&<>"']/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                if (m === '"') return '&quot;';
+                return '&#039;';
+            });
+        }
+
         function renderTodos() {
             if (!todoListEl) return;
             let html = '';
             todos.forEach(todo => {
                 if (todo.editing) {
-                    // 编辑模式：显示输入框
                     html += `
                         <li class="todo-item" data-id="${todo.id}">
-                            <input type="checkbox" disabled> <!-- 编辑时禁用勾选 -->
+                            <input type="checkbox" disabled>
                             <input type="text" class="todo-item-input" id="edit-${todo.id}" value="${escapeHtml(todo.text)}" placeholder="输入事项...">
                             <span class="todo-item-delete" onclick="deleteTodo(${todo.id})">✕</span>
                         </li>
                     `;
                 } else {
-                    // 查看模式：显示文本和复选框
                     html += `
                         <li class="todo-item" data-id="${todo.id}">
                             <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="toggleTodo(${todo.id}, this.checked)">
@@ -429,13 +458,11 @@
             });
             todoListEl.innerHTML = html;
 
-            // 如果有正在编辑的项，聚焦到它的输入框
             const editingTodo = todos.find(t => t.editing);
             if (editingTodo) {
                 const input = document.getElementById(`edit-${editingTodo.id}`);
                 if (input) {
                     input.focus();
-                    // 添加事件监听：回车保存，失去焦点保存
                     input.onkeydown = (e) => {
                         if (e.key === 'Enter') {
                             saveEditing(editingTodo.id, input.value);
@@ -448,13 +475,11 @@
             }
         }
 
-        // 保存编辑内容
         function saveEditing(id, newText) {
             const todo = todos.find(t => t.id === id);
             if (!todo) return;
             const trimmed = newText.trim();
             if (trimmed === '') {
-                // 内容为空，删除该项
                 todos = todos.filter(t => t.id !== id);
             } else {
                 todo.text = trimmed;
@@ -464,27 +489,20 @@
             renderTodos();
         }
 
-        // 添加新待办（点击加号）
         function addTodo() {
-            // 检查是否有空白项
             if (hasBlankTodo()) {
-                // 如果有空白项，聚焦到第一个空白项的输入框
                 const blankTodo = todos.find(t => t.text.trim() === '');
                 if (blankTodo) {
-                    // 如果该空白项不在编辑模式，将其设为编辑模式
                     if (!blankTodo.editing) {
                         blankTodo.editing = true;
                         saveTodos();
                         renderTodos();
                     } else {
-                        // 已经在编辑模式，聚焦即可（渲染时自动聚焦）
                         renderTodos();
                     }
                 }
                 return;
             }
-
-            // 创建新空白待办，并设为编辑模式
             const newTodo = {
                 id: Date.now(),
                 text: '',
@@ -496,25 +514,21 @@
             renderTodos();
         }
 
-        // 删除待办
         window.deleteTodo = function(id) {
             todos = todos.filter(todo => todo.id !== id);
             saveTodos();
             renderTodos();
         };
 
-        // 切换勾选状态
         window.toggleTodo = function(id, checked) {
             const todo = todos.find(t => t.id === id);
             if (todo) {
                 todo.completed = checked;
                 saveTodos();
-                // 不需要重新渲染，但为了其他项可能受影响，可以重新渲染
-                renderTodos(); // 为了保持界面一致性，重新渲染
+                renderTodos();
             }
         };
 
-        // 清空所有待办
         function clearTodos() {
             if (confirm('确定清空所有待办事项吗？')) {
                 todos = [];
@@ -523,41 +537,48 @@
             }
         }
 
-        // 辅助函数：转义HTML
-        function escapeHtml(unsafe) {
-            if (!unsafe) return '';
-            return unsafe.replace(/[&<>"']/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                if (m === '"') return '&quot;';
-                return '&#039;';
-            });
-        }
-
-        // 事件绑定
         todoAddBtn.addEventListener('click', addTodo);
         todoClearBtn.addEventListener('click', clearTodos);
 
-        // 初始化加载并渲染
         loadTodos();
         renderTodos();
 
-        // ---------- 初始化页面其他部分 ----------
+        // ---------- 初始化页面其他部分（保证时间更新始终注册）----------
         function init() {
-            setCountdownTitles();
+            // 先更新时间
             updateDateTime();
-            updateCountdowns();
-            fetchForecast();
-            updateNanjingPlace();
 
+            // 设置定时器，每分钟更新一次时间
             setInterval(updateDateTime, 60000);
-            setInterval(updateCountdowns, 60000);
+
+            // 尝试更新倒计时和标题（如果配置存在）
+            try {
+                setCountdownTitles();
+                updateCountdowns();
+                setInterval(updateCountdowns, 60000); // 倒计时每天变一次，但为了精确可每分钟更新
+            } catch (e) {
+                console.log('倒计时配置可能未加载', e);
+            }
+
+            // 天气
+            try {
+                fetchForecast();
+                // 天气每天更新即可，但这里不设自动刷新，保持原逻辑
+            } catch (e) {
+                console.log('天气配置可能未加载', e);
+            }
+
+            // 地名
+            try {
+                updateNanjingPlace();
+            } catch (e) {
+                console.log('地名加载出错', e);
+            }
         }
 
         init();
     </script>
-    <!-- 隐藏平台注入测试提示的脚本 -->
+    <!-- 隐藏平台注入测试提示的脚本（仅适用于 EdgeOne，其他平台可忽略） -->
     <script>
         window.addEventListener('load', function() {
             document.body.childNodes.forEach(node => {
