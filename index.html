@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>每日看板 · 农历版</title>
+    <style>
+        /* 极简风格：无边框、无背景色，使用系统默认无衬线字体 */
+        body {
+            margin: 0;
+            padding: 12px;
+            background: #ffffff;
+            color: #000000;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            font-size: 16px;
+            line-height: 1.4;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .card {
+            padding: 0;
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: bold;
+            border-left: 4px solid #000;
+            padding-left: 8px;
+            margin: 0;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 8px;
+            margin-bottom: 4px;
+        }
+        /* 三行日期布局 */
+        .date-line {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 2px 0;
+        }
+        .date-line-small {
+            font-size: 18px;
+            color: #333;
+            margin: 2px 0;
+        }
+        .time-line {
+            font-size: 22px;
+            font-weight: bold;
+            margin: 4px 0 0;
+        }
+        .row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .countdown-number {
+            font-size: 42px;
+            text-align: center;
+            font-weight: bold;
+            margin: 5px 0 0;
+        }
+        .countdown-label {
+            text-align: center;
+            font-size: 15px;
+            color: #333;
+            margin-top: 2px;
+        }
+        /* 天气横排 */
+        .forecast-row {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            gap: 15px;
+        }
+        .forecast-item {
+            flex: 1;
+            text-align: center;
+            padding: 5px 0;
+        }
+        .forecast-icon {
+            font-size: 32px;
+            line-height: 1.2;
+        }
+        .forecast-date {
+            font-weight: bold;
+            font-size: 16px;
+            margin: 4px 0 2px;
+        }
+        .forecast-temp {
+            font-size: 16px;
+            margin: 2px 0;
+        }
+        .forecast-desc {
+            font-size: 14px;
+            color: #555;
+            text-transform: capitalize;
+        }
+        /* 地名卡片 */
+        #place-card {
+            display: flex;
+            flex-direction: column;
+            min-height: 140px;
+        }
+        .place-name {
+            font-size: 32px;
+            font-weight: bold;
+            text-align: center;
+            margin: auto 0;
+            word-break: break-word;
+        }
+        .place-desc {
+            font-size: 15px;
+            color: #333;
+            text-align: justify;
+            line-height: 1.4;
+            margin-top: auto;
+            word-break: break-word;
+        }
+        /* 待办区域新样式 */
+        .todo-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .todo-header-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .todo-header-btn {
+            font-size: 20px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+            background: none;
+        }
+        .todo-header-btn.clear {
+            font-size: 16px;
+            width: auto;
+            padding: 0 10px;
+        }
+        .todo-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0 0;
+        }
+        .todo-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-size: 17px;
+            border-bottom: 1px dashed #eee;
+            padding-bottom: 6px;
+        }
+        .todo-item input[type="checkbox"] {
+            width: 22px;
+            height: 22px;
+            margin-right: 6px;
+            flex-shrink: 0;
+        }
+        .todo-item-text {
+            flex: 1;
+            word-break: break-word;
+        }
+        .todo-item-input {
+            flex: 1;
+            font-size: 17px;
+            padding: 4px 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+        .todo-item-delete {
+            font-size: 20px;
+            color: #999;
+            cursor: pointer;
+            padding: 0 6px;
+            user-select: none;
+        }
+        .todo-item-delete:hover {
+            color: #f00;
+        }
+        .footer {
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+            margin-top: 15px;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+    </style>
+    <!-- 引入外部配置文件 -->
+    <script src="config.js"></script>
+    <script src="places.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- 日期区域：三行布局 -->
+        <div class="header">
+            <div class="date-line" id="solar-lunar"></div>
+            <div class="date-line-small" id="week-festival"></div>
+            <div class="time-line" id="current-time"></div>
+        </div>
+
+        <!-- 两个倒计时并排 -->
+        <div class="row-2">
+            <div class="card">
+                <div class="card-title" id="countdown1-title">⏳ 倒计时1</div>
+                <div class="countdown-number" id="countdown1">--</div>
+                <div class="countdown-label">天</div>
+            </div>
+            <div class="card">
+                <div class="card-title" id="countdown2-title">⏳ 倒计时2</div>
+                <div class="countdown-number" id="countdown2">--</div>
+                <div class="countdown-label">天</div>
+            </div>
+        </div>
+
+        <!-- 天气卡片 -->
+        <div class="card">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                <div class="card-title" style="margin-bottom: 0;">🌤️ 天气预报</div>
+                <span id="city-display" style="font-size: 15px; color: #555;">加载位置...</span>
+            </div>
+            <div id="forecast" class="forecast-row">加载天气...</div>
+        </div>
+
+        <!-- 地名 + 待办 并排 -->
+        <div class="row-2">
+            <div class="card">
+                <div class="card-title">🏯 南京地名</div>
+                <div id="place-card">
+                    <div id="place-name" class="place-name">“冶城”</div>
+                    <div id="place-desc" class="place-desc">公元前495年，吴王夫差在今朝天宫后山设冶铸作坊，南京最早的城邑雏形。</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="todo-header">
+                    <div class="card-title">✅ 待办事项</div>
+                    <div class="todo-header-buttons">
+                        <div id="todoAddBtn" class="todo-header-btn">+</div>
+                        <div id="todoClearBtn" class="todo-header-btn clear">清空</div>
+                    </div>
+                </div>
+                <ul class="todo-list" id="todoList"></ul>
+            </div>
+        </div>
+
+        <div class="footer"></div>
+    </div>
+
+    <script>
+        // ---------- 全局错误捕获 ----------
+        window.addEventListener('error', function(e) {
+            console.log('捕获到错误:', e.message);
+        });
+
+        // ---------- 地名相关 ----------
+        const placeNameEl = document.getElementById('place-name');
+        const placeDescEl = document.getElementById('place-desc');
+
+        function updateNanjingPlace() {
+            if (typeof NANJING_PLACES !== 'undefined' && NANJING_PLACES.length) {
+                const randomIndex = Math.floor(Math.random() * NANJING_PLACES.length);
+                const place = NANJING_PLACES[randomIndex];
+                placeNameEl.textContent = `“${place.name}”`;
+                placeDescEl.textContent = place.desc;
+            } else {
+                placeNameEl.textContent = '地名加载中...';
+                placeDescEl.textContent = '';
+            }
+        }
+
+        // ---------- 日期时间与农历 ----------
+        const solarLunarEl = document.getElementById('solar-lunar');
+        const weekFestivalEl = document.getElementById('week-festival');
+        const currentTimeEl = document.getElementById('current-time');
+
+        // 缓存农历数据，每天只请求一次
+        let cachedLunarData = null;
+        let lastFetchDate = null;
+
+        async function fetchLunarData() {
+            // 如果未启用或未配置密钥，直接返回null
+            if (typeof LUNAR_CONFIG === 'undefined' || !LUNAR_CONFIG.enabled || !LUNAR_CONFIG.apiKey) {
+                console.log('农历API未配置，使用基础日期显示');
+                return null;
+            }
+
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${today.getMonth()+1}-${today.getDate()}`;
+
+            // 如果今天已经请求过且缓存存在，直接使用缓存
+            if (cachedLunarData && lastFetchDate === todayStr) {
+                return cachedLunarData;
+            }
+
+            try {
+                // 格式化日期时间为接口要求的格式：YYYYMMDDHHMMSS
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const hours = String(today.getHours()).padStart(2, '0');
+                const minutes = String(today.getMinutes()).padStart(2, '0');
+                const seconds = String(today.getSeconds()).padStart(2, '0');
+                const dateParam = `${year}${month}${day}${hours}${minutes}${seconds}`;
+
+                const url = `https://api.shwgij.com/api/lunars/lunar?key=${LUNAR_CONFIG.apiKey}&date=${dateParam}`;
+                const response = await fetch(url);
+                
+                // 注意：接口文档说缓存状态会返回201，这里统一处理
+                if (!response.ok && response.status !== 201) {
+                    throw new Error(`HTTP错误 ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.code !== 200 && data.code !== 201) {
+                    throw new Error(`API错误: ${data.msg}`);
+                }
+
+                if (data.data) {
+                    cachedLunarData = data.data;
+                    lastFetchDate = todayStr;
+                    return cachedLunarData;
+                } else {
+                    throw new Error('返回数据格式异常');
+                }
+            } catch (e) {
+                console.error('获取农历数据失败', e);
+                return null;
+            }
+        }
+
+        async function updateDateTimeWithLunar() {
+            try {
+                const now = new Date();
+                
+                // 格式化基础时间
+                const year = now.getFullYear();
+                const month = now.getMonth() + 1;
+                const day = now.getDate();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+
+                // 更新时间（第三行）
+                currentTimeEl.textContent = `${hours}:${minutes}`;
+
+                // 获取农历数据（异步）
+                const lunarData = await fetchLunarData();
+
+                if (lunarData) {
+                    // 第一行：公历 + 农历
+					const solarStr = lunarData.Solar || `${year}年${month}月${day}日`;
+					const lunarStr = lunarData.Lunar || '';
+
+					// 规范化干支和生肖字段，避免多余“年”字
+					let ganZhi = lunarData.GanZhiYear || '';
+					if (ganZhi.endsWith('年')) {
+						ganZhi = ganZhi.slice(0, -1); // 去掉末尾的“年”
+					}
+					let thisYear = lunarData.ThisYear || '';
+					if (!thisYear.endsWith('年')) {
+						thisYear = thisYear + '年';    // 确保生肖以“年”结尾
+					}
+					const yearStr = (ganZhi && thisYear) ? ganZhi + thisYear : '';
+
+					const lunarFull = yearStr ? `${yearStr}${lunarStr}` : lunarStr;
+					solarLunarEl.textContent = `${solarStr} ${lunarFull}`.trim();
+
+                    // 第二行：星期 + 节日 + 节气
+                    const weekStr = lunarData.Week || `周${'日一二三四五六'[now.getDay()]}`;
+                    const festival = lunarData.Festivals || '';  // 公历节日
+                    const lunarFestival = lunarData.Lunar_Festivals || ''; // 农历节日
+                    const jieqi = lunarData.JieQi1 || ''; // 节气
+                    
+                    // 组合节日和节气，过滤空值
+                    const parts = [weekStr];
+                    if (festival) parts.push(festival);
+                    if (lunarFestival && lunarFestival !== festival) parts.push(lunarFestival);
+                    if (jieqi) parts.push(jieqi);
+                    
+                    weekFestivalEl.textContent = parts.join(' · ');
+                } else {
+                    // 降级方案：只显示基础信息
+                    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                    const weekday = weekdays[now.getDay()];
+                    solarLunarEl.textContent = `${year}年${month}月${day}日`;
+                    weekFestivalEl.textContent = weekday;
+                }
+            } catch (e) {
+                console.error('更新日期出错', e);
+                // 极端降级
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = now.getMonth() + 1;
+                const day = now.getDate();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                const weekday = weekdays[now.getDay()];
+                
+                solarLunarEl.textContent = `${year}年${month}月${day}日`;
+                weekFestivalEl.textContent = weekday;
+                currentTimeEl.textContent = `${hours}:${minutes}`;
+            }
+        }
+
+        // 每分钟更新一次时间（农历数据每天只拉取一次）
+        setInterval(() => {
+            // 只更新时间，不重新拉取农历（除非跨天）
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            currentTimeEl.textContent = `${hours}:${minutes}`;
+            
+            // 检查是否跨天，如果是则重新拉取农历
+            const todayStr = `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`;
+            if (lastFetchDate !== todayStr) {
+                updateDateTimeWithLunar(); // 会重新拉取农历并更新全部三行
+            }
+        }, 1000);
+
+        // ---------- 倒计时 ----------
+        const countdown1El = document.getElementById('countdown1');
+        const countdown2El = document.getElementById('countdown2');
+        const countdown1Title = document.getElementById('countdown1-title');
+        const countdown2Title = document.getElementById('countdown2-title');
+
+        function setCountdownTitles() {
+            if (typeof COUNTDOWNS !== 'undefined' && COUNTDOWNS && COUNTDOWNS.length >= 2) {
+                countdown1Title.textContent = `⏳ ${COUNTDOWNS[0].name}`;
+                countdown2Title.textContent = `⏳ ${COUNTDOWNS[1].name}`;
+            } else {
+                countdown1Title.textContent = '⏳ 倒计时1';
+                countdown2Title.textContent = '⏳ 倒计时2';
+            }
+        }
+
+        function daysUntil(targetYear, targetMonth, targetDay) {
+            if (!targetYear || !targetMonth || !targetDay) return 0;
+            const target = new Date(targetYear, targetMonth - 1, targetDay);
+            target.setHours(0, 0, 0, 0);
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            const diff = target - now;
+            return diff >= 0 ? Math.floor(diff / (1000 * 60 * 60 * 24)) : 0;
+        }
+
+        function updateCountdowns() {
+            if (typeof COUNTDOWNS !== 'undefined' && COUNTDOWNS && COUNTDOWNS.length >= 2) {
+                countdown1El.textContent = daysUntil(COUNTDOWNS[0].year, COUNTDOWNS[0].month, COUNTDOWNS[0].day);
+                countdown2El.textContent = daysUntil(COUNTDOWNS[1].year, COUNTDOWNS[1].month, COUNTDOWNS[1].day);
+            } else {
+                countdown1El.textContent = '--';
+                countdown2El.textContent = '--';
+            }
+        }
+
+        // ---------- 天气（高德地图 API）----------
+        const forecastEl = document.getElementById('forecast');
+        const cityDisplay = document.getElementById('city-display');
+
+        if (cityDisplay && typeof WEATHER_CONFIG !== 'undefined') {
+            if (WEATHER_CONFIG.cityDisplay) {
+                cityDisplay.textContent = WEATHER_CONFIG.cityDisplay;
+            } else if (WEATHER_CONFIG.cityCode) {
+                cityDisplay.textContent = WEATHER_CONFIG.cityCode;
+            } else if (WEATHER_CONFIG.city) {
+                cityDisplay.textContent = WEATHER_CONFIG.city;
+            } else {
+                cityDisplay.textContent = '未知';
+            }
+        }
+
+        function getWeatherIcon(desc) {
+            if (desc.includes('晴')) return '☀️';
+            if (desc.includes('多云')) return '⛅';
+            if (desc.includes('阴')) return '☁️';
+            if (desc.includes('雨') && desc.includes('阵')) return '🌦️';
+            if (desc.includes('雨')) return '🌧️';
+            if (desc.includes('雪')) return '❄️';
+            if (desc.includes('雾')) return '🌫️';
+            if (desc.includes('雷')) return '⛈️';
+            return '🌈';
+        }
+
+        async function fetchForecast() {
+            if (typeof WEATHER_CONFIG === 'undefined' || !WEATHER_CONFIG.apiKey) {
+                const mock = [
+                    { date: '4月12日', temp: '18°C / 10°C', desc: '晴', icon: '☀️' },
+                    { date: '4月13日', temp: '20°C / 12°C', desc: '多云', icon: '⛅' },
+                    { date: '4月14日', temp: '17°C / 11°C', desc: '小雨', icon: '🌧️' }
+                ];
+                renderForecast(mock);
+                return;
+            }
+            try {
+                const config = WEATHER_CONFIG;
+                const cityParam = config.cityCode ? config.cityCode : (config.city || '');
+                if (!cityParam) throw new Error('未配置城市编码');
+
+                const weatherUrl = `https://restapi.amap.com/v3/weather/weatherInfo?city=${encodeURIComponent(cityParam)}&key=${config.apiKey}&extensions=all&output=json`;
+                const response = await fetch(weatherUrl);
+                if (!response.ok) throw new Error(`HTTP错误 ${response.status}`);
+                
+                const data = await response.json();
+                if (data.status !== '1' || data.infocode !== '10000') {
+                    throw new Error(`高德API错误: ${data.info || '未知错误'}`);
+                }
+                if (!data.forecasts || data.forecasts.length === 0) throw new Error('未找到天气数据');
+                
+                const forecast = data.forecasts[0].casts.slice(0, 3);
+                const forecastList = forecast.map(day => {
+                    const dateParts = day.date.split('-');
+                    const month = parseInt(dateParts[1]);
+                    const dayOfMonth = parseInt(dateParts[2]);
+                    const tempMin = parseInt(day.nighttemp);
+                    const tempMax = parseInt(day.daytemp);
+                    const desc = day.dayweather;
+                    const icon = getWeatherIcon(desc);
+                    return {
+                        date: `${month}月${dayOfMonth}日`,
+                        temp: `${tempMin}°C / ${tempMax}°C`,
+                        desc: desc,
+                        icon: icon
+                    };
+                });
+                renderForecast(forecastList);
+            } catch (e) {
+                console.error('天气获取失败', e);
+                forecastEl.innerHTML = `<div class="forecast-item">天气加载失败：${e.message}</div>`;
+            }
+        }
+
+        function renderForecast(forecastList) {
+            let html = '';
+            forecastList.forEach(day => {
+                html += `
+                    <div class="forecast-item">
+                        <div class="forecast-icon">${day.icon || '🌈'}</div>
+                        <div class="forecast-date">${day.date}</div>
+                        <div class="forecast-temp">${day.temp}</div>
+                        <div class="forecast-desc">${day.desc}</div>
+                    </div>
+                `;
+            });
+            forecastEl.innerHTML = html || '<div class="forecast-item">无预报数据</div>';
+        }
+
+        // ---------- 动态待办事项管理 ----------
+        const todoListEl = document.getElementById('todoList');
+        const todoAddBtn = document.getElementById('todoAddBtn');
+        const todoClearBtn = document.getElementById('todoClearBtn');
+
+        let todos = [];
+
+        function loadTodos() {
+            const stored = localStorage.getItem('dynamicTodos');
+            if (stored) {
+                try {
+                    todos = JSON.parse(stored);
+                } catch (e) {
+                    todos = [];
+                }
+            } else {
+                todos = [];
+            }
+        }
+
+        function saveTodos() {
+            localStorage.setItem('dynamicTodos', JSON.stringify(todos));
+        }
+
+        function hasBlankTodo() {
+            return todos.some(todo => todo.text.trim() === '');
+        }
+
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe.replace(/[&<>"']/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                if (m === '"') return '&quot;';
+                return '&#039;';
+            });
+        }
+
+        function renderTodos() {
+            if (!todoListEl) return;
+            let html = '';
+            todos.forEach(todo => {
+                if (todo.editing) {
+                    html += `
+                        <li class="todo-item" data-id="${todo.id}">
+                            <input type="checkbox" disabled>
+                            <input type="text" class="todo-item-input" id="edit-${todo.id}" value="${escapeHtml(todo.text)}" placeholder="输入事项...">
+                            <span class="todo-item-delete" onclick="deleteTodo(${todo.id})">✕</span>
+                        </li>
+                    `;
+                } else {
+                    html += `
+                        <li class="todo-item" data-id="${todo.id}">
+                            <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="toggleTodo(${todo.id}, this.checked)">
+                            <span class="todo-item-text">${escapeHtml(todo.text)}</span>
+                            <span class="todo-item-delete" onclick="deleteTodo(${todo.id})">✕</span>
+                        </li>
+                    `;
+                }
+            });
+            todoListEl.innerHTML = html;
+
+            const editingTodo = todos.find(t => t.editing);
+            if (editingTodo) {
+                const input = document.getElementById(`edit-${editingTodo.id}`);
+                if (input) {
+                    input.focus();
+                    input.onkeydown = (e) => {
+                        if (e.key === 'Enter') {
+                            saveEditing(editingTodo.id, input.value);
+                        }
+                    };
+                    input.onblur = () => {
+                        saveEditing(editingTodo.id, input.value);
+                    };
+                }
+            }
+        }
+
+        function saveEditing(id, newText) {
+            const todo = todos.find(t => t.id === id);
+            if (!todo) return;
+            const trimmed = newText.trim();
+            if (trimmed === '') {
+                todos = todos.filter(t => t.id !== id);
+            } else {
+                todo.text = trimmed;
+                todo.editing = false;
+            }
+            saveTodos();
+            renderTodos();
+        }
+
+        function addTodo() {
+            if (hasBlankTodo()) {
+                const blankTodo = todos.find(t => t.text.trim() === '');
+                if (blankTodo) {
+                    if (!blankTodo.editing) {
+                        blankTodo.editing = true;
+                        saveTodos();
+                        renderTodos();
+                    } else {
+                        renderTodos();
+                    }
+                }
+                return;
+            }
+            const newTodo = {
+                id: Date.now(),
+                text: '',
+                completed: false,
+                editing: true
+            };
+            todos.push(newTodo);
+            saveTodos();
+            renderTodos();
+        }
+
+        window.deleteTodo = function(id) {
+            todos = todos.filter(todo => todo.id !== id);
+            saveTodos();
+            renderTodos();
+        };
+
+        window.toggleTodo = function(id, checked) {
+            const todo = todos.find(t => t.id === id);
+            if (todo) {
+                todo.completed = checked;
+                saveTodos();
+                renderTodos();
+            }
+        };
+
+        function clearTodos() {
+            if (confirm('确定清空所有待办事项吗？')) {
+                todos = [];
+                saveTodos();
+                renderTodos();
+            }
+        }
+
+        todoAddBtn.addEventListener('click', addTodo);
+        todoClearBtn.addEventListener('click', clearTodos);
+
+        loadTodos();
+        renderTodos();
+
+        // ---------- 初始化页面 ----------
+        async function init() {
+            // 初始化日期显示（含农历）
+            await updateDateTimeWithLunar();
+
+            // 倒计时
+            try {
+                setCountdownTitles();
+                updateCountdowns();
+                setInterval(updateCountdowns, 60000);
+            } catch (e) {
+                console.log('倒计时配置可能未加载', e);
+            }
+
+            // 天气
+            try {
+                fetchForecast();
+            } catch (e) {
+                console.log('天气配置可能未加载', e);
+            }
+
+            // 地名
+            try {
+                updateNanjingPlace();
+            } catch (e) {
+                console.log('地名加载出错', e);
+            }
+        }
+
+        init();
+    </script>
+    <!-- 如果使用 EdgeOne 可保留隐藏测试提示脚本，否则可忽略 -->
+    <script>
+        window.addEventListener('load', function() {
+            document.body.childNodes.forEach(node => {
+                if (node.nodeType === Node.ELEMENT_NODE && node.innerText && node.innerText.includes('仅用于演示')) {
+                    node.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
